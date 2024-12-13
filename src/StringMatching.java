@@ -1,6 +1,7 @@
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+
 public class StringMatching {
     public static void main(String[] args) {
         BrutalForce brutalForce = new BrutalForce();
@@ -37,11 +38,13 @@ public class StringMatching {
                     break;
                 case 3:
                     kmp2.searchKMP2(text, pattern);
+                    break;
                 case 4:
                     boyerMoore.searchBM(text, pattern);
-
+                    break;
                 default:
                     System.out.println("Opción no válida.");
+                    break;
             }
         }
         scanner.close();
