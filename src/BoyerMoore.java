@@ -1,7 +1,5 @@
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
 public class BoyerMoore {
     private static int comparaciones;
     private static int fallos;
@@ -16,79 +14,52 @@ public class BoyerMoore {
      * @param pattern Patrón a buscar
      * @return void (imprime las métricas directamente)
      */
-    public  void searchBM(String text, String pattern) {
-        long totTime = 0;
+    public List<Integer> searchBM(String text, String pattern) {
         long startTime = System.currentTimeMillis();
-        // Reiniciar métricas
         comparaciones = 0;
         fallos = 0;
         desplazamientos = 0;
         coincidencias = 0;
         indicesCoincidencias = new ArrayList<>();
-
-        // Longitudes del texto y del patrón
         int n = text.length();
         int m = pattern.length();
-
-        // Caso especial: patrón más largo que texto
         if (m > n) {
-            imprimirMetricas();
-            return;
+            return indicesCoincidencias;
         }
-
-        // Preprocesamiento de heurística de mal carácter
         Map<Character, Integer> badCharacter = preprocessBadCharacter(pattern);
-
-        // Preprocesamiento de heurística de sufijo bueno
+        bmInitOcc(pattern,256);
         int[] goodSuffix = preprocessGoodSuffix(pattern);
-
-        // Índice para recorrer el texto
+        mostrarTablaGoodSuffix(pattern, goodSuffix);
         int i = 0;
         while (i <= n - m) {
-            // Comparación de derecha a izquierda
             int j = m - 1;
-
-            // Mientras los caracteres coincidan de derecha a izquierda
             while (j >= 0 && pattern.charAt(j) == text.charAt(i + j)) {
                 comparaciones++;
                 j--;
             }
-
-            // Si se encontró un patrón completo
             if (j < 0) {
                 coincidencias++;
                 indicesCoincidencias.add(i);
-                // Desplazamiento según el sufijo bueno
                 i += goodSuffix[0];
             } else {
-                // Incrementar fallos
                 fallos++;
-
-                // Cálculo del desplazamiento máximo
                 int badCharShift = j - badCharacter.getOrDefault(text.charAt(i + j), -1);
                 int goodSuffixShift = goodSuffix[j + 1];
-
-                // Desplazamiento máximo
                 int shift = Math.max(badCharShift, goodSuffixShift);
                 i += shift;
             }
-
-            // Incrementar desplazamientos
             desplazamientos++;
         }
-        imprimirMetricas();
-        totTime += (System.currentTimeMillis() - startTime);
-        System.out.println("Tiempo de computo: " + totTime / 1e6 + "[ms]");
-    }
 
-    /**
-     * Método para imprimir las métricas de búsqueda
-     */
+        long totalTime = System.currentTimeMillis() - startTime;
+        System.out.println("Tiempo de computo: " + totalTime / 1e6 + "[ms]");
+
+        imprimirMetricas();
+        return indicesCoincidencias;
+    }
     private static void imprimirMetricas() {
         // Mostrar métricas
         System.out.println("\n--- Métricas ---");
-        System.out.println("Fallos: " + fallos);
-        System.out.println("Desplazamientos: " + (desplazamientos-1));
         System.out.println("Número de coincidencias: " + coincidencias);
 
         if (coincidencias > 0) {
@@ -97,10 +68,6 @@ public class BoyerMoore {
             System.out.println("Patrón NO encontrado en el texto.");
         }
     }
-
-    /**
-     * Preprocesamiento de la heurística de mal carácter
-     */
     private static Map<Character, Integer> preprocessBadCharacter(String pattern) {
         Map<Character, Integer> badCharacter = new HashMap<>();
 
@@ -110,18 +77,12 @@ public class BoyerMoore {
 
         return badCharacter;
     }
-    /**
-     * Preprocesamiento de la heurística de sufijo bueno
-     */
     private static int[] preprocessGoodSuffix(String pattern) {
         int m = pattern.length();
         int[] s = new int[m + 1];
         int[] f = new int[m + 1];
-
-        // Caso 1: Preparación para sufijos
         f[m] = m + 1;
         int i = m, j = m + 1;
-
         while (i > 0) {
             while (j <= m && pattern.charAt(i - 1) != pattern.charAt(j - 1)) {
                 if (s[j] == 0) {
@@ -133,8 +94,6 @@ public class BoyerMoore {
             j--;
             f[i] = j;
         }
-
-        // Caso 2: Preparación para bordes del patrón
         j = f[0];
         for (i = 0; i <= m; i++) {
             if (s[i] == 0) {
@@ -144,7 +103,42 @@ public class BoyerMoore {
                 j = f[j];
             }
         }
-
         return s;
+    }
+    private static void mostrarTablaGoodSuffix(String pattern, int[] goodSuffix) {
+        System.out.println("\n--- Tabla de Heurística de Sufijo Bueno ---");
+        System.out.println("Patrón: " + pattern);
+        System.out.println("Desplazamientos por Sufijo:");
+        for (int i = 0; i < goodSuffix.length; i++) {
+            System.out.println("Índice " + i + ": " + goodSuffix[i]);
+        }
+    }
+    /**
+     * Método para inicializar y procesar la tabla de ocurrencias (Bad Character)
+     * @param pattern Patrón a analizar
+     * @param alphabetSize Tamaño del alfabeto (por ejemplo, 256 para ASCII)
+     */
+    private void bmInitOcc(String pattern, int alphabetSize) {
+        int m = pattern.length();
+        int[] occ = new int[alphabetSize];
+        for (int i = 0; i < alphabetSize; i++) {
+            occ[i] = m;
+        }
+        char[] p = pattern.toCharArray();
+        for (int j = 0; j < m; j++) {
+            occ[p[j]] = m - 1 - j; // Almacenar la última aparición de cada carácter
+        }
+        TreeMap<Character, Integer> orderedOccurrences = new TreeMap<>();
+        for (int j = 0; j < m; j++) {
+            orderedOccurrences.put(p[j], occ[p[j]]);
+        }
+        System.out.println("Tabla de Prefijo Malo (D1):");
+        System.out.print("D1: ");
+        orderedOccurrences.forEach((key, value) -> System.out.print(key + " "));
+        System.out.println();
+        System.out.print("D1: ");
+        orderedOccurrences.forEach((key, value) -> System.out.print(value + " "));
+        System.out.println();
+        System.out.println("OTROS: " + m);
     }
 }
